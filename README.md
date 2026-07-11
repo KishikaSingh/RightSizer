@@ -38,8 +38,6 @@ RightSizer is a serverless AWS FinOps solution that automatically discovers Amaz
 
 # Architecture
 
-> Replace the image below with your architecture diagram.
-
 ![Architecture](architecture/architecture.png)
 
 ---
