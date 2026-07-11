@@ -1,18 +1,21 @@
-# EC2 Rightsizing & Cost Optimization Analyzer
+# RightSizer – Automated AWS EC2 Rightsizing & Cost Optimization
 
-A serverless AWS FinOps solution that automatically monitors Amazon EC2 instances, analyzes utilization using CloudWatch metrics, generates rightsizing recommendations, stores reports in Amazon S3, and sends email notifications through Amazon SNS. The entire workflow is automated using Amazon EventBridge and AWS Lambda.
+RightSizer is a serverless AWS FinOps solution that automatically discovers Amazon EC2 instances, analyzes historical utilization using Amazon CloudWatch metrics, generates intelligent rightsizing recommendations, estimates potential cost savings, stores reports in Amazon S3, and sends email notifications using Amazon SNS. The complete workflow is automated using Amazon EventBridge and AWS Lambda, enabling continuous infrastructure monitoring and cost optimization.
 
 ---
 
 ## Features
 
-- Automated EC2 monitoring every 5 minutes
-- CPU, Memory, and Disk utilization analysis
-- Weighted utilization scoring
-- Rightsizing recommendations
+- Automated discovery of running Amazon EC2 instances
+- Historical CloudWatch metrics analysis (Last 7 Days)
+- CPU, Memory, and Disk utilization monitoring
+- Intelligent rightsizing recommendation engine
+- Monthly and annual cost savings estimation
 - JSON report generation
-- Report and log storage in Amazon S3
+- Automatic report storage in Amazon S3
 - Email notifications using Amazon SNS
+- Scheduled execution using Amazon EventBridge
+- CloudWatch logging and monitoring
 - Fully serverless architecture
 - Modular Python implementation
 
@@ -22,51 +25,56 @@ A serverless AWS FinOps solution that automatically monitors Amazon EC2 instance
 
 | Service | Purpose |
 |----------|---------|
-| Amazon EC2 | Compute instances being monitored |
-| Amazon CloudWatch | Collects CPU and network metrics |
-| CloudWatch Agent | Publishes memory and disk metrics |
-| AWS Lambda | Executes monitoring and analysis |
-| Amazon EventBridge | Triggers Lambda every 5 minutes |
-| Amazon S3 | Stores reports and logs |
-| Amazon SNS | Sends email notifications |
-| AWS IAM | Access management and permissions |
+| Amazon EC2 | Discover and analyze running EC2 instances |
+| Amazon CloudWatch | Collect historical utilization metrics |
+| CloudWatch Agent | Publish Memory and Disk utilization metrics |
+| AWS Lambda | Execute the complete rightsizing workflow |
+| Amazon EventBridge | Automatically trigger Lambda on schedule |
+| Amazon S3 | Store generated reports |
+| Amazon SNS | Send email notifications |
+| AWS IAM | Secure access and permissions |
 
 ---
 
 # Architecture
 
-![Architecture](architecture/architecture-diagram.jpeg)
+> Replace the image below with your architecture diagram.
+
+![Architecture](architecture/architecture.png)
 
 ---
 
 # Project Workflow
 
 ```text
-                EventBridge
-             (Every 5 Minutes)
-                     │
-                     ▼
-             AWS Lambda Function
-                     │
-                     ▼
-       Retrieve Running EC2 Instances
-                     │
-                     ▼
-      Fetch CloudWatch Metrics
- CPU │ Memory │ Disk │ Network
-                     │
-                     ▼
-      Weighted Utilization Analysis
-                     │
-                     ▼
-     Generate Rightsizing Recommendation
-                     │
-        ┌────────────┴────────────┐
-        ▼                         ▼
- Upload Report to S3      Send Email via SNS
-        │
-        ▼
-   Execution Completed
+                  Amazon EventBridge
+                 (Scheduled Trigger)
+                         │
+                         ▼
+                 AWS Lambda Function
+                         │
+                         ▼
+          Discover Running EC2 Instances
+                         │
+                         ▼
+     Retrieve Historical CloudWatch Metrics
+          CPU • Memory • Disk (7 Days)
+                         │
+                         ▼
+       Generate Rightsizing Recommendation
+                         │
+                         ▼
+         Estimate Monthly & Annual Savings
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+     Generate JSON Report     Send SNS Email
+              │
+              ▼
+      Upload Report to Amazon S3
+              │
+              ▼
+      Execution Completed
 ```
 
 ---
@@ -74,18 +82,23 @@ A serverless AWS FinOps solution that automatically monitors Amazon EC2 instance
 # Project Structure
 
 ```text
-ec2-rightsizing-analyzer/
+RightSizer/
 │
-├── lambda_code/
+├── lambda/
 │   ├── lambda_function.py
 │   ├── config.py
 │   ├── ec2_service.py
 │   ├── cloudwatch_service.py
-│   ├── analyzer.py
+│   ├── recommendation_engine.py
+│   ├── pricing.py
+│   ├── cost_analyser.py
 │   ├── report_generator.py
 │   ├── s3_service.py
 │   ├── sns_service.py
 │   └── requirements.txt
+│
+├── architecture/
+│   └── architecture-diagram.jpeg
 │
 ├── screenshots/
 │
@@ -99,72 +112,96 @@ ec2-rightsizing-analyzer/
 
 | Module | Description |
 |----------|-------------|
-| lambda_function.py | Main entry point that coordinates the workflow |
-| config.py | Stores project configuration values |
-| ec2_service.py | Retrieves running EC2 instances |
-| cloudwatch_service.py | Fetches CloudWatch metrics |
-| analyzer.py | Calculates utilization score and recommendation |
-| report_generator.py | Creates JSON reports |
-| s3_service.py | Uploads reports and logs to Amazon S3 |
-| sns_service.py | Sends email notifications |
+| lambda_function.py | Coordinates the complete serverless workflow |
+| config.py | Stores configuration values and thresholds |
+| ec2_service.py | Discovers running EC2 instances |
+| cloudwatch_service.py | Retrieves historical CloudWatch metrics |
+| recommendation_engine.py | Generates rightsizing recommendations |
+| pricing.py | Stores EC2 pricing information |
+| cost_analyser.py | Calculates monthly and annual savings |
+| report_generator.py | Generates JSON reports |
+| s3_service.py | Uploads reports to Amazon S3 |
+| sns_service.py | Sends summary email notifications |
 
 ---
 
-# Utilization Policy
+# Recommendation Logic
 
-| Overall Score | Status | Recommendation |
-|--------------:|--------|----------------|
-| 0 – 25 | Underutilized | Rightsize or Stop Instance |
-| 25 – 70 | Optimal | No Action Required |
-| 70 – 85 | High Utilization | Monitor Workload |
-| 85 – 100 | Overutilized | Upgrade Instance |
+The recommendation engine analyzes the average CPU utilization over the previous seven days.
+
+| Average CPU Utilization | Recommendation |
+|-------------------------|----------------|
+| Less than 10% | Stop Idle Instance |
+| 10% – 30% | Downsize Instance |
+| 30% – 70% | Keep Current Instance |
+| Above 70% | Investigate High Utilization |
+
+Memory and Disk utilization are also included in the report for additional operational insights.
+
+---
+
+# Cost Savings Estimation
+
+The project estimates infrastructure savings using predefined monthly pricing for supported EC2 instance types.
+
+| Recommendation | Estimated Savings |
+|---------------|-------------------|
+| Stop Idle Instance | 100% Monthly Cost |
+| Downsize Instance | Approximately 50% Monthly Cost |
+| Keep Current Instance | No Savings |
+| Investigate High Utilization | No Savings |
+
+Both monthly and annual savings are included in the generated report.
 
 ---
 
 # Metrics Used
 
-| Metric | Source | Used in Analysis |
-|---------|--------|------------------|
-| CPU Utilization | Amazon CloudWatch | Yes |
-| Memory Utilization | CloudWatch Agent | Yes |
-| Disk Utilization | CloudWatch Agent | Yes |
-| Network In | Amazon CloudWatch | Reporting Only |
-| Network Out | Amazon CloudWatch | Reporting Only |
+| Metric | Source | Used |
+|---------|--------|------|
+| CPU Utilization | Amazon CloudWatch | Recommendation Engine |
+| Memory Utilization | CloudWatch Agent | Reporting |
+| Disk Utilization | CloudWatch Agent | Reporting |
 
 ---
 
 # Deployment Workflow
 
-1. Launch an EC2 instance.
-2. Install and configure the CloudWatch Agent.
-3. Verify metrics in Amazon CloudWatch.
-4. Create an Amazon S3 bucket.
-5. Create an Amazon SNS topic and subscribe an email.
-6. Create an IAM Role with required permissions.
-7. Deploy the AWS Lambda function.
-8. Configure Amazon EventBridge to trigger Lambda every 5 minutes.
-9. Test the workflow.
-10. Monitor reports and notifications.
+1. Launch an Amazon EC2 instance.
+2. Attach an IAM role with CloudWatch permissions.
+3. Install and configure the Amazon CloudWatch Agent.
+4. Verify CPU, Memory, and Disk metrics in Amazon CloudWatch.
+5. Create an Amazon S3 bucket.
+6. Create an Amazon SNS topic and subscribe an email endpoint.
+7. Create an AWS Lambda function.
+8. Upload all project source files.
+9. Configure Lambda environment variables.
+10. Create an EventBridge scheduled rule.
+11. Test the Lambda function.
+12. Verify reports in Amazon S3 and notifications through Amazon SNS.
+
+---
+
+# Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| BUCKET_NAME | Amazon S3 bucket name |
+| SNS_TOPIC_ARN | Amazon SNS Topic ARN |
 
 ---
 
 # Screenshots
 
-## EC2 Instance
+## Lambda Function
 
-![EC2 Instance](screenshots/ec2-instance.png)
+![Lambda](screenshots/lambda.png)
 
 ---
 
 ## CloudWatch Dashboard
 
 ![CloudWatch Metrics](screenshots/cloudwatch-dashboard.png)
-
----
-
-## Lambda Function
-
-![Lambda](screenshots/lambda.png)
 
 ---
 
@@ -180,22 +217,28 @@ ec2-rightsizing-analyzer/
 
 ---
 
-## EventBridge Scheduler
+## EventBridge Rule
 
 ![EventBridge](screenshots/eventbridge.png)
 
 ---
 
+## Cloudwatch-agent
+
+![Cloudwatch-agent](screenshots/Cloudwatch-agent.png)
+
+---
+
 # Future Enhancements
 
-- AWS Compute Optimizer integration
-- AWS Cost Explorer integration
+- AWS Pricing API integration
 - Historical trend analysis
-- CloudWatch Dashboard
-- CSV/PDF report generation
-- Web dashboard for report visualization
+- CSV and PDF report generation
+- Interactive dashboard for report visualization
+- DynamoDB integration
 - Multi-region monitoring
-- Automatic instance resizing using AWS Systems Manager
+- Automatic EC2 rightsizing using AWS Systems Manager
+- Machine learning-based recommendation engine
 
 ---
 
@@ -213,6 +256,43 @@ ec2-rightsizing-analyzer/
 - Boto3
 
 ---
+
+# Challenges Faced
+
+During the development of RightSizer, several practical challenges were encountered and resolved:
+
+- Configuring the Amazon CloudWatch Agent for Memory and Disk metrics
+- Managing IAM permissions for secure access across AWS services
+- Debugging Lambda import and runtime errors
+- Handling CloudWatch metric availability and delays
+- Configuring EventBridge scheduled execution
+- Managing Lambda environment variables
+- Designing a modular serverless architecture
+
+Resolving these issues provided practical experience with AWS serverless development, cloud monitoring, debugging distributed systems, and FinOps-based infrastructure optimization.
+
+---
+
+# Learning Outcomes
+
+This project provided practical experience with:
+
+- AWS Lambda
+- Amazon EC2
+- Amazon CloudWatch
+- CloudWatch Agent
+- Amazon EventBridge
+- Amazon SNS
+- Amazon S3
+- AWS IAM
+- Serverless Architecture
+- Infrastructure Automation
+- Cloud Monitoring
+- FinOps
+- AWS SDK for Python (Boto3)
+
+---
+
 
 # Author
 
