@@ -1,11 +1,9 @@
-import json
-from datetime import datetime
-
 from Rightsizer.lambda_code.ec2_service import get_running_instances
-from Rightsizer.lambda_code.cloudwatch_service import get_metrics
-from Rightsizer.lambda_code.analyzer import analyze
+from Rightsizer.lambda_code.cloudwatch_service import get_instance_metrics
+from Rightsizer.lambda_code.recommendation_engine import get_recommendation
+from Rightsizer.lambda_code.cost_analyser import calculate_savings
 from Rightsizer.lambda_code.report_generator import generate_report
-from Rightsizer.lambda_code.s3_service import upload_report, upload_log
+from Rightsizer.lambda_code.s3_service import upload_report
 from Rightsizer.lambda_code.sns_service import send_notification
 
 
@@ -15,71 +13,62 @@ def lambda_handler(event, context):
 
     reports = []
 
-    summary = {
-        "UNDERUTILIZED": 0,
-        "OPTIMAL": 0,
-        "HIGH UTILIZATION": 0,
-        "OVERUTILIZED": 0
-    }
+    total_monthly_savings = 0
+    total_annual_savings = 0
+
+    stop_instances = 0
+    downsize_instances = 0
+    keep_instances = 0
+    investigate_instances = 0
 
     for instance in instances:
 
-        metrics = get_metrics(instance["InstanceId"])
+        metrics = get_instance_metrics(instance["InstanceId"])
 
-        analysis = analyze(metrics)
+        recommendation = get_recommendation(metrics)
 
-        report = generate_report(instance, metrics, analysis)
+        savings = calculate_savings(
+            instance["InstanceType"],
+            recommendation
+        )
+
+        report = generate_report(
+            instance,
+            metrics,
+            recommendation,
+            savings
+        )
 
         reports.append(report)
 
-        summary[analysis["Status"]] += 1
+        total_monthly_savings += savings["MonthlySaving"]
+        total_annual_savings += savings["AnnualSaving"]
 
-    final_report = {
-        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "TotalInstances": len(instances),
-        "Summary": summary,
-        "Instances": reports
-    }
+        if recommendation == "Stop Idle Instance":
+            stop_instances += 1
 
-    file_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+        elif recommendation == "Downsize Instance":
+            downsize_instances += 1
 
-    upload_report(final_report, file_name)
+        elif recommendation == "Keep Current Instance":
+            keep_instances += 1
 
-    log = f"""
-Execution Time : {datetime.now()}
+        else:
+            investigate_instances += 1
 
-Instances Scanned : {len(instances)}
+    upload_report(reports)
 
-Underutilized : {summary['UNDERUTILIZED']}
-
-Optimal : {summary['OPTIMAL']}
-
-High Utilization : {summary['HIGH UTILIZATION']}
-
-Overutilized : {summary['OVERUTILIZED']}
-"""
-
-    upload_log(log, file_name)
-
-    message = f"""
-EC2 Rightsizing Analysis Completed
-
-Total Instances : {len(instances)}
-
-Underutilized : {summary['UNDERUTILIZED']}
-
-Optimal : {summary['OPTIMAL']}
-
-High Utilization : {summary['HIGH UTILIZATION']}
-
-Overutilized : {summary['OVERUTILIZED']}
-
-Detailed report has been uploaded to S3.
-"""
-
-    send_notification(message)
+    send_notification(
+        total_instances=len(instances),
+        stop_instances=stop_instances,
+        downsize_instances=downsize_instances,
+        keep_instances=keep_instances,
+        investigate_instances=investigate_instances,
+        monthly_savings=total_monthly_savings,
+        annual_savings=total_annual_savings
+    )
 
     return {
         "statusCode": 200,
-        "body": json.dumps("Analysis Completed Successfully")
+        "body": "EC2 Rightsizing Analysis Completed Successfully"
     }

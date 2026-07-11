@@ -1,28 +1,28 @@
 from datetime import datetime
 
 
-def generate_report(instance, metrics, analysis):
+def generate_report(instance, metrics, recommendation, savings):
 
     report = {
-        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+
+        "AnalysisTime": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
 
         "InstanceId": instance["InstanceId"],
 
+        "InstanceName": instance["InstanceName"],
+
         "InstanceType": instance["InstanceType"],
 
-        "Metrics": {
-            "CPUUtilization": metrics["cpu"],
-            "MemoryUtilization": metrics["memory"],
-            "DiskUtilization": metrics["disk"],
-            "NetworkIn": metrics["networkin"],
-            "NetworkOut": metrics["networkout"]
-        },
+        "AvailabilityZone": instance["AvailabilityZone"],
 
-        "OverallScore": analysis["OverallScore"],
+        "Metrics": metrics,
 
-        "Status": analysis["Status"],
+        "Recommendation": recommendation,
 
-        "Recommendation": analysis["Recommendation"]
+        "MonthlySaving": savings["MonthlySaving"],
+
+        "AnnualSaving": savings["AnnualSaving"]
+
     }
 
     return report

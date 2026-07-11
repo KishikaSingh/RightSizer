@@ -5,14 +5,7 @@ ec2 = boto3.client("ec2")
 
 def get_running_instances():
 
-    response = ec2.describe_instances(
-        Filters=[
-            {
-                "Name": "instance-state-name",
-                "Values": ["running"]
-            }
-        ]
-    )
+    response = ec2.describe_instances()
 
     instances = []
 
@@ -20,9 +13,29 @@ def get_running_instances():
 
         for instance in reservation["Instances"]:
 
+            if instance["State"]["Name"] != "running":
+                continue
+
+            name = "No Name"
+
+            if "Tags" in instance:
+
+                for tag in instance["Tags"]:
+
+                    if tag["Key"] == "Name":
+                        name = tag["Value"]
+
             instances.append({
+
                 "InstanceId": instance["InstanceId"],
-                "InstanceType": instance["InstanceType"]
+
+                "InstanceType": instance["InstanceType"],
+
+                "InstanceName": name,
+
+                "AvailabilityZone":
+                instance["Placement"]["AvailabilityZone"]
+
             })
 
     return instances

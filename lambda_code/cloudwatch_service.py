@@ -1,122 +1,69 @@
 import boto3
 from datetime import datetime, timedelta
-from Rightsizer.lambda_code.config import ANALYSIS_WINDOW_MINUTES, METRIC_PERIOD
+from Rightsizer.lambda_code.config import METRIC_DURATION_DAYS
 
 cloudwatch = boto3.client("cloudwatch")
 
 
-def get_metrics(instance_id):
+def get_average_metric(namespace, metric_name, instance_id):
 
     end_time = datetime.utcnow()
-    start_time = end_time - timedelta(minutes=ANALYSIS_WINDOW_MINUTES)
+    start_time = end_time - timedelta(days=METRIC_DURATION_DAYS)
 
-    response = cloudwatch.get_metric_data(
+    response = cloudwatch.get_metric_statistics(
+        Namespace=namespace,
+        MetricName=metric_name,
 
-        MetricDataQueries=[
-
+        Dimensions=[
             {
-                "Id": "cpu",
-                "MetricStat": {
-                    "Metric": {
-                        "Namespace": "AWS/EC2",
-                        "MetricName": "CPUUtilization",
-                        "Dimensions": [
-                            {
-                                "Name": "InstanceId",
-                                "Value": instance_id
-                            }
-                        ]
-                    },
-                    "Period": METRIC_PERIOD,
-                    "Stat": "Average"
-                }
-            },
-
-            {
-                "Id": "networkin",
-                "MetricStat": {
-                    "Metric": {
-                        "Namespace": "AWS/EC2",
-                        "MetricName": "NetworkIn",
-                        "Dimensions": [
-                            {
-                                "Name": "InstanceId",
-                                "Value": instance_id
-                            }
-                        ]
-                    },
-                    "Period": METRIC_PERIOD,
-                    "Stat": "Average"
-                }
-            },
-
-            {
-                "Id": "networkout",
-                "MetricStat": {
-                    "Metric": {
-                        "Namespace": "AWS/EC2",
-                        "MetricName": "NetworkOut",
-                        "Dimensions": [
-                            {
-                                "Name": "InstanceId",
-                                "Value": instance_id
-                            }
-                        ]
-                    },
-                    "Period": METRIC_PERIOD,
-                    "Stat": "Average"
-                }
-            },
-
-            {
-                "Id": "memory",
-                "MetricStat": {
-                    "Metric": {
-                        "Namespace": "CWAgent",
-                        "MetricName": "mem_used_percent",
-                        "Dimensions": [
-                            {
-                                "Name": "InstanceId",
-                                "Value": instance_id
-                            }
-                        ]
-                    },
-                    "Period": METRIC_PERIOD,
-                    "Stat": "Average"
-                }
-            },
-
-            {
-                "Id": "disk",
-                "MetricStat": {
-                    "Metric": {
-                        "Namespace": "CWAgent",
-                        "MetricName": "disk_used_percent",
-                        "Dimensions": [
-                            {
-                                "Name": "InstanceId",
-                                "Value": instance_id
-                            }
-                        ]
-                    },
-                    "Period": METRIC_PERIOD,
-                    "Stat": "Average"
-                }
+                "Name": "InstanceId",
+                "Value": instance_id
             }
-
         ],
 
         StartTime=start_time,
-        EndTime=end_time
+        EndTime=end_time,
+
+        Period=3600,
+        Statistics=["Average"]
     )
 
-    metrics = {}
+    datapoints = response["Datapoints"]
 
-    for result in response["MetricDataResults"]:
+    if not datapoints:
+        return 0
 
-        if result["Values"]:
-            metrics[result["Id"]] = round(result["Values"][0], 2)
-        else:
-            metrics[result["Id"]] = 0
+    total = 0
+
+    for point in datapoints:
+        total += point["Average"]
+
+    return round(total / len(datapoints), 2)
+
+
+def get_instance_metrics(instance_id):
+
+    metrics = {
+
+        "CPU": get_average_metric(
+            "AWS/EC2",
+            "CPUUtilization",
+            instance_id
+        ),
+
+        "Memory": get_average_metric(
+            "CWAgent",
+            "mem_used_percent",
+            instance_id
+        ),
+
+        "Disk": get_average_metric(
+            "CWAgent",
+            "disk_used_percent",
+            instance_id
+        )
+
+    }
 
     return metrics
+    
